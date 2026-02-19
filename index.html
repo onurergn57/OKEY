@@ -1,0 +1,601 @@
+﻿<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profesyonel Okey Masası - Akıllı Dizme Sistemi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #064e3b;
+            color: white;
+            font-family: 'Segoe UI', sans-serif;
+            overflow: hidden;
+            touch-action: none;
+            margin: 0;
+        }
+
+        #settings-overlay, #game-modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 500;
+            display: flex; align-items: center; justify-content: center;
+            backdrop-filter: blur(10px);
+        }
+
+        #game-modal { display: none; z-index: 1000; }
+
+        .settings-card, .modal-card {
+            background: #1a1a1a;
+            border: 2px solid #fbbf24;
+            border-radius: 20px;
+            padding: 30px;
+            width: 550px;
+            box-shadow: 0 0 30px rgba(251, 191, 36, 0.2);
+            text-align: center;
+        }
+
+        .input-group { margin-bottom: 12px; text-align: left; }
+        .input-group label { display: block; font-size: 11px; color: #fbbf24; text-transform: uppercase; margin-bottom: 5px; font-weight: bold; }
+        .input-group input, .input-group select { width: 100%; background: #2a2a2a; border: 1px solid #444; padding: 10px; border-radius: 8px; color: white; }
+
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 8px; cursor: pointer; background: #444; border-radius: 4px; }
+        input[type=range]::-webkit-slider-thumb { height: 20px; width: 20px; border-radius: 50%; background: #ef4444; cursor: pointer; -webkit-appearance: none; margin-top: -6px; border: 2px solid #fff; }
+
+        .start-btn { width: 100%; background: #fbbf24; color: #000; padding: 15px; border-radius: 10px; font-weight: 900; text-transform: uppercase; margin-top: 10px; cursor: pointer; border: none; }
+        .secondary-btn { background: #444; color: white; margin-top: 10px; padding: 12px; border-radius: 8px; width: 100%; font-weight: bold; cursor: pointer; border: none; }
+
+        #game-area { display: none; }
+
+        .table-surface {
+            background: radial-gradient(circle, #075e47 0%, #053b2d 100%);
+            height: 100vh; width: 100vw;
+            position: relative;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        .home-btn {
+            position: absolute; top: 20px; left: 20px;
+            background: rgba(0, 0, 0, 0.6); color: #fbbf24;
+            padding: 10px 15px; border: 1px solid #fbbf24;
+            border-radius: 8px; font-weight: bold; cursor: pointer;
+            z-index: 100;
+        }
+
+        .player-info {
+            background: rgba(0, 0, 0, 0.9);
+            padding: 10px 20px;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            text-align: center;
+            min-width: 130px;
+            position: absolute;
+            z-index: 20;
+        }
+
+        .score-badge { font-size: 18px; font-weight: 900; color: #ef4444; display: block; }
+        .active-turn { border: 2px solid #fbbf24; box-shadow: 0 0 15px rgba(251, 191, 36, 0.6); }
+
+        .pos-yasar { top: 50px; left: 50%; transform: translateX(-50%); }
+        .pos-ahmet { left: 40px; top: 40%; transform: translateY(-50%); }
+        .pos-asli { right: 40px; top: 40%; transform: translateY(-50%); }
+        .pos-siz { bottom: 240px; left: 50%; transform: translateX(-50%); }
+
+        .discard-pile {
+            width: 54px; height: 76px;
+            border: 1.5px dashed rgba(251, 191, 36, 0.3);
+            position: absolute; z-index: 10;
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.05);
+        }
+        .discard-pile .tile { position: absolute; box-shadow: -2px 2px 5px rgba(0,0,0,0.4); margin: 0; }
+
+        .pile-asli { bottom: 42%; right: 15%; } 
+        .pile-yasar { top: 12%; right: 15%; }
+        .pile-ahmet { top: 12%; left: 15%; }
+        .pile-siz { bottom: 42%; left: 15%; }
+
+        .center-group {
+            position: absolute; top: 38%; left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex; gap: 20px; z-index: 5;
+            align-items: flex-end; 
+        }
+
+        .center-box {
+            display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+            min-width: 110px; height: 120px; padding: 8px; border-radius: 12px; background: rgba(0, 0, 0, 0.1);
+        }
+
+        .finish-zone { border: 2px solid #fbbf24; background: rgba(251, 191, 36, 0.05); transition: all 0.3s ease; }
+        .finish-zone.droppable-active { background: rgba(251, 191, 36, 0.4); transform: scale(1.05); }
+
+        .label-text { font-size: 10px; font-weight: 800; margin-bottom: 8px; text-transform: uppercase; white-space: nowrap; letter-spacing: 0.5px; }
+
+        .rack-container { position: absolute; bottom: 20px; display: flex; align-items: center; gap: 15px; z-index: 30; }
+
+        .wood-rack {
+            background: linear-gradient(to bottom, #7a3e12 0%, #4a2508 100%);
+            border: 5px solid #331a06; border-radius: 12px;
+            height: 195px; width: 900px; padding: 15px 10px;
+            display: flex; flex-direction: column; justify-content: space-between;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.9);
+        }
+
+        .rack-row { display: grid; grid-template-columns: repeat(15, 1fr); gap: 4px; height: 76px; }
+        .tile-slot { height: 100%; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 4px; }
+
+        .tile {
+            width: 52px; height: 74px; background: #ffffff; border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            color: #222; font-weight: 900; font-size: 38px;
+            box-shadow: 0 4px 4px rgba(0,0,0,0.3); border-bottom: 5px solid #d1d1d1;
+            cursor: grab; user-select: none; position: relative;
+        }
+
+        .is-okey { border: 2px solid #fbbf24 !important; box-shadow: 0 0 15px #fbbf24, inset 0 0 5px #fbbf24 !important; }
+        .is-fake-okey { color: transparent !important; background-image: radial-gradient(circle, #fff 20%, #fef3c7 100%); }
+        .is-fake-okey::after { content: '★'; position: absolute; color: #fbbf24; font-size: 40px; text-shadow: 0 0 5px rgba(0,0,0,0.2); }
+        
+        .tile.red { color: #d32f2f; }
+        .tile.blue { color: #1976d2; }
+        .tile.black { color: #212121; }
+        .tile.yellow { color: #f57c00; }
+
+        .dragging-active { opacity: 0 !important; }
+        .droppable-active { background: rgba(251, 191, 36, 0.4) !important; border-color: #fbbf24 !important; }
+
+        .btn-side {
+            background: #fbbf24; width: 70px; height: 195px; border-radius: 8px; font-size: 16px;
+            font-weight: 900; color: #000; border: none; cursor: pointer; transition: all 0.2s;
+            box-shadow: 0 4px 0 #b4891b; writing-mode: vertical-rl; text-orientation: mixed;
+            display: flex; align-items: center; justify-content: center; text-transform: uppercase;
+        }
+
+        .status-msg {
+            position: absolute; top: 20px; right: 20px;
+            background: rgba(0,0,0,0.8); padding: 10px 20px;
+            border-radius: 10px; font-size: 14px; color: #fbbf24;
+            border: 1px solid #fbbf24; z-index: 1000;
+            box-shadow: 0 0 15px rgba(251,191,36,0.3);
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div id="status-display" class="status-msg" style="display:none;"></div>
+
+<button class="home-btn" id="main-home-btn" style="display:none;" onclick="goToMainMenu()">ANA MENÜ</button>
+
+<div id="game-modal">
+    <div class="modal-card">
+        <h2 id="modal-title" class="text-3xl font-black text-yellow-400 mb-4 uppercase">OYUN BİTTİ</h2>
+        <p id="modal-desc" class="text-white mb-8 text-lg"></p>
+        <button class="start-btn" onclick="continueGame()">DEVAM ET</button>
+        <button class="secondary-btn" onclick="goToMainMenu()">ANA MENÜYE DÖN</button>
+    </div>
+</div>
+
+<div id="settings-overlay">
+    <div class="settings-card">
+        <h2 class="text-2xl font-black text-yellow-400 mb-6 text-center uppercase">Oyun Ayarları</h2>
+        <div class="grid grid-cols-2 gap-4 mb-4">
+            <div class="input-group"><label>Siz</label><input type="text" id="name-0" value="SİZ"></div>
+            <div class="input-group"><label>Sağ</label><input type="text" id="name-1" value="ASLI"></div>
+            <div class="input-group"><label>Karşı</label><input type="text" id="name-2" value="YAŞAR"></div>
+            <div class="input-group"><label>Sol</label><input type="text" id="name-3" value="AHMET"></div>
+        </div>
+        <div class="grid grid-cols-2 gap-4 mb-4">
+            <div class="input-group"><label>Zorluk</label><select id="difficulty"><option value="easy">Amatör</option><option value="medium" selected>Deneyimli</option><option value="hard">Profesyonel</option></select></div>
+            <div class="input-group"><label>Puan</label><select id="start-score"><option value="20" selected>20 Puan</option><option value="40">40 Puan</option></select></div>
+        </div>
+        <div class="input-group mb-6">
+            <label id="speed-label">Oyun Hızı (Normal)</label>
+            <input type="range" id="game-speed" min="300" max="2500" value="1200" step="100">
+        </div>
+        <button class="start-btn" onclick="startGame()">Başla</button>
+    </div>
+</div>
+
+<div id="game-area">
+    <div class="table-surface">
+        <div id="panel-2" class="player-info pos-yasar"><div id="disp-2">YAŞAR</div><span class="score-badge" id="score-2">20</span></div>
+        <div id="panel-3" class="player-info pos-ahmet"><div id="disp-3">AHMET</div><span class="score-badge" id="score-3">20</span></div>
+        <div id="panel-1" class="player-info pos-asli"><div id="disp-1">ASLI</div><span class="score-badge" id="score-1">20</span></div>
+        <div id="panel-0" class="player-info pos-siz"><div class="font-black text-yellow-400" id="disp-0">SİZ</div><span class="score-badge" id="score-0">20</span></div>
+
+        <div class="discard-pile pile-siz" id="discard-0"></div>
+        <div class="discard-pile pile-asli" id="discard-1"></div>
+        <div class="discard-pile pile-yasar" id="discard-2"></div>
+        <div class="discard-pile pile-ahmet" id="discard-3"></div>
+
+        <div class="center-group">
+            <div class="center-box finish-zone" id="finish-target">
+                <span class="label-text text-yellow-400">BİTİŞ</span>
+                <div class="tile red" id="indicator-tile">1</div>
+            </div>
+            <div class="center-box" id="deck-box-container">
+                <span class="label-text opacity-50" id="deck-count">DESTE</span>
+                <div class="tile" id="main-deck" style="background:#eee; cursor: pointer;">
+                    <span class="opacity-30 text-[10px]">ÇEK</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="rack-container">
+            <div class="wood-rack" id="main-rack">
+                <div class="rack-row" id="row-0"></div>
+                <div class="rack-row" id="row-1"></div>
+            </div>
+            <button class="btn-side" onclick="autoSortSmart()">SERİ DİZ</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const COLORS = ['red', 'blue', 'black', 'yellow'];
+    let playerHand = Array(30).fill(null);
+    let botHands = { 1: [], 2: [], 3: [] };
+    let playerScores = [20, 20, 20, 20];
+    let dragSource = null; 
+    let turn = 0; 
+    let gameState = "DRAW"; 
+    let deck = [];
+    let initialDeckSize = 0;
+    let sidePiles = { 0: [], 1: [], 2: [], 3: [] };
+    let okeyTile = { color: '', val: 0 };
+    let actualWaitTime = 1200;
+    let difficulty = 'medium';
+    let isGameOver = false;
+
+    document.getElementById('game-speed').addEventListener('input', (e) => {
+        let rawValue = parseInt(e.target.value);
+        actualWaitTime = (2500 + 300) - rawValue;
+        let label = rawValue > 2100 ? "Çok Hızlı" : (rawValue > 1600 ? "Hızlı" : (rawValue < 800 ? "Yavaş" : "Normal"));
+        document.getElementById('speed-label').innerText = `Oyun Hızı (${label})`;
+    });
+
+    function goToMainMenu() {
+        location.reload();
+    }
+
+    function continueGame() {
+        document.getElementById('game-modal').style.display = 'none';
+        isGameOver = false;
+        initRound();
+    }
+
+    function showEndModal(title, desc) {
+        isGameOver = true;
+        document.getElementById('modal-title').innerText = title;
+        document.getElementById('modal-desc').innerText = desc;
+        document.getElementById('game-modal').style.display = 'flex';
+    }
+
+    function startGame() {
+        difficulty = document.getElementById('difficulty').value;
+        let rawVal = parseInt(document.getElementById('game-speed').value);
+        actualWaitTime = (2500 + 300) - rawVal;
+        const startVal = parseInt(document.getElementById('start-score').value);
+        playerScores = [startVal, startVal, startVal, startVal];
+        for(let i=0; i<4; i++) {
+            const name = document.getElementById(`name-${i}`).value.toUpperCase();
+            document.getElementById(`disp-${i}`).innerText = name;
+            document.getElementById(`score-${i}`).innerText = startVal;
+        }
+        document.getElementById('settings-overlay').style.display = 'none';
+        document.getElementById('main-home-btn').style.display = 'block';
+        document.getElementById('game-area').style.display = 'block';
+        initRound();
+    }
+
+    function initRound() {
+        deck = []; sidePiles = { 0: [], 1: [], 2: [], 3: [] };
+        playerHand = Array(30).fill(null); botHands = { 1: [], 2: [], 3: [] };
+        COLORS.forEach(c => { for(let v=1; v<=13; v++) { deck.push({ color: c, val: v, fake: false }); deck.push({ color: c, val: v, fake: false }); } });
+        deck.push({ color: 'black', val: '★', fake: true }, { color: 'red', val: '★', fake: true });
+        deck.sort(() => Math.random() - 0.5);
+        let indIdx = deck.length - 1;
+        while(indIdx >= 0 && deck[indIdx].fake) indIdx--;
+        const indicator = deck.splice(indIdx, 1)[0];
+        okeyTile = { color: indicator.color, val: (indicator.val === 13 ? 1 : indicator.val + 1) };
+        document.getElementById('indicator-tile').innerText = indicator.val;
+        document.getElementById('indicator-tile').className = `tile ${indicator.color}`;
+        for(let i=0; i<15; i++) playerHand[i] = deck.pop();
+        for(let b=1; b<=3; b++) for(let i=0; i<14; i++) botHands[b].push(deck.pop());
+        initialDeckSize = deck.length;
+        gameState = "DISCARD"; turn = 0; renderAllPiles(); updateDeckUI(); updateTurnUI(); renderRack(); setupEvents();
+    }
+
+    function isOkey(tile) { return tile && !tile.fake && tile.color === okeyTile.color && tile.val === okeyTile.val; }
+
+    function autoSortSmart() {
+        let tiles = playerHand.filter(t => t !== null);
+        let okeys = tiles.filter(t => isOkey(t));
+        let others = tiles.filter(t => !isOkey(t));
+        others = others.map(t => t.fake ? { ...t, val: okeyTile.val, color: okeyTile.color, isActualFake: true } : t);
+        
+        let perList = [];
+        let usedIndices = new Set();
+
+        // 1. Seri Per Bul (Aynı Renk, Ardışık) - 12, 13, 1 Kuralı Dahil
+        COLORS.forEach(color => {
+            let colorTiles = others.filter((t, i) => t.color === color).sort((a,b) => a.val - b.val);
+            // Benzersiz val değerleri olan taşlar
+            let uniqueColorTiles = [];
+            colorTiles.forEach(t => { if(!uniqueColorTiles.find(u => u.val === t.val)) uniqueColorTiles.push(t); });
+            
+            // Standart ardışık ve 12-13-1 kontrolü
+            for (let i = 0; i < uniqueColorTiles.length; i++) {
+                let currentPer = [uniqueColorTiles[i]];
+                let lastVal = uniqueColorTiles[i].val;
+                
+                for (let j = i + 1; j < uniqueColorTiles.length; j++) {
+                    let current = uniqueColorTiles[j];
+                    // Normal ardışık: 1-2, 5-6 vb.
+                    if (current.val === lastVal + 1) {
+                        currentPer.push(current);
+                        lastVal = current.val;
+                    } 
+                    // Okey ile tamamlama (Örn: 5 - Okey - 7)
+                    else if (current.val === lastVal + 2 && okeys.length > 0) {
+                        currentPer.push({ ...okeys.shift(), tempVal: lastVal + 1, tempColor: color, isOkeyInPer: true });
+                        currentPer.push(current);
+                        lastVal = current.val;
+                    } else break;
+                }
+
+                // ÖZEL DURUM: 12-13'ten sonra 1 gelmesi (Eğer per 12-13 ile bittiyse ve elimizde 1 varsa)
+                if (currentPer.length >= 2 && currentPer[currentPer.length-1].val === 13) {
+                    let tileOne = uniqueColorTiles.find(t => t.val === 1);
+                    if (tileOne && !currentPer.find(p => p.val === 1)) {
+                        currentPer.push(tileOne);
+                    } else if (okeys.length > 0 && !currentPer.find(p => p.val === 1)) {
+                        // Okey 1 yerine geçebilir
+                        currentPer.push({ ...okeys.shift(), tempVal: 1, tempColor: color, isOkeyInPer: true });
+                    }
+                }
+
+                if (currentPer.length >= 3) {
+                    perList.push(currentPer);
+                    currentPer.forEach(p => { 
+                        if(!p.isOkeyInPer) {
+                            let idx = others.indexOf(p);
+                            if(idx !== -1) usedIndices.add(idx);
+                        }
+                    });
+                    i += currentPer.filter(p => !p.isOkeyInPer).length - 1;
+                }
+            }
+        });
+
+        // 2. Grup Per Bul (Farklı Renk, Aynı Sayı)
+        let remainingAfterSeri = others.filter((t, i) => !usedIndices.has(i));
+        let groups = {};
+        remainingAfterSeri.forEach(t => { if(!groups[t.val]) groups[t.val] = []; groups[t.val].push(t); });
+        
+        for (let val in groups) {
+            let uniqueGroup = [];
+            let seenColors = new Set();
+            groups[val].forEach(t => { if(!seenColors.has(t.color)) { seenColors.add(t.color); uniqueGroup.push(t); }});
+            
+            if (uniqueGroup.length >= 3) { 
+                perList.push(uniqueGroup); 
+                uniqueGroup.forEach(p => { let idx = others.indexOf(p); if(idx !== -1) usedIndices.add(idx); });
+            } else if (uniqueGroup.length === 2 && okeys.length > 0) {
+                let p = [...uniqueGroup, { ...okeys.shift(), isOkeyInPer: true }];
+                perList.push(p); 
+                uniqueGroup.forEach(p => { let idx = others.indexOf(p); if(idx !== -1) usedIndices.add(idx); });
+            }
+        }
+
+        // 3. Kalan Okeyleri Boş Yerlere Yerleştir
+        while (okeys.length > 0) {
+            perList.push([{ ...okeys.shift(), isOkeyInPer: true }]);
+        }
+
+        // 4. Kalan Taşlar (Çöpler)
+        let trash = others.filter((t, i) => !usedIndices.has(i));
+
+        // 5. Istakaya Yerleştirme (BLOK KORUMA & SATIR SONU KONTROLÜ)
+        let newHand = Array(30).fill(null);
+        let cursor = 0;
+        
+        perList.forEach(per => {
+            let perLen = per.length;
+            let currentLineEnd = cursor < 15 ? 15 : 30;
+            
+            // Eğer perin tamamı bu satıra sığmıyorsa alt satıra geç (Blok Koruma)
+            if (cursor + perLen > currentLineEnd) {
+                if (cursor < 15) {
+                    cursor = 15; // Alt satıra atla
+                }
+            }
+
+            per.forEach(t => {
+                if(cursor < 30) {
+                    if(t.isOkeyInPer) newHand[cursor++] = tiles.find(orig => isOkey(orig));
+                    else if(t.isActualFake) newHand[cursor++] = tiles.find(orig => orig.fake);
+                    else newHand[cursor++] = t;
+                }
+            });
+            cursor++; // Perler arası bir boşluk
+        });
+
+        // Çöpleri sağ alt köşeden başlayarak diz
+        let trashCursor = 29;
+        trash.reverse().forEach(t => {
+            while(trashCursor >= 0 && newHand[trashCursor] !== null) trashCursor--;
+            if (trashCursor >= 0) {
+                newHand[trashCursor] = t.isActualFake ? tiles.find(orig => orig.fake) : t;
+            }
+        });
+
+        playerHand = newHand; 
+        renderRack();
+        showStatus("Akıllı Dizilim: 12-13-1 ve Blok Koruma Aktif");
+    }
+
+    function createTileUI(tile, source = null, idx = null, isHistory = false) {
+        if(!tile) return null;
+        const el = document.createElement('div');
+        el.className = `tile ${tile.color}`;
+        if (tile.fake) { el.innerText = ''; el.classList.add('is-fake-okey'); } 
+        else { el.innerText = tile.val; }
+        if (isOkey(tile)) el.classList.add('is-okey');
+        if(!isHistory) {
+            el.draggable = true;
+            el.addEventListener('dragstart', (e) => {
+                if((source === "SIDE" || source === "DECK") && (turn !== 0 || gameState !== "DRAW")) { 
+                    e.preventDefault(); 
+                    return; 
+                }
+                dragSource = source; 
+                if(source === "RACK") e.dataTransfer.setData("fromIdx", idx); 
+                setTimeout(() => el.classList.add('dragging-active'), 0);
+            });
+            el.addEventListener('dragend', () => el.classList.remove('dragging-active'));
+        }
+        return el;
+    }
+
+    function renderRack() {
+        for(let row=0; row<2; row++) {
+            const rowEl = document.getElementById(`row-${row}`); rowEl.innerHTML = '';
+            for(let i = row * 15; i < (row + 1) * 15; i++) {
+                const slot = document.createElement('div'); slot.className = 'tile-slot'; slot.dataset.idx = i;
+                slot.ondragover = e => { e.preventDefault(); slot.classList.add('droppable-active'); };
+                slot.ondragleave = () => slot.classList.remove('droppable-active');
+                slot.ondrop = e => {
+                    e.preventDefault(); slot.classList.remove('droppable-active');
+                    const toIdx = parseInt(slot.dataset.idx); 
+                    const fromIdx = e.dataTransfer.getData("fromIdx");
+                    if (dragSource === "RACK") {
+                        const fIdx = parseInt(fromIdx); 
+                        [playerHand[toIdx], playerHand[fIdx]] = [playerHand[fIdx], playerHand[toIdx]];
+                    } else if (gameState === "DRAW" && turn === 0 && playerHand[toIdx] === null) {
+                        if (dragSource === "DECK" && deck.length > 0) { playerHand[toIdx] = deck.pop(); gameState = "DISCARD"; }
+                        else if (dragSource === "SIDE" && sidePiles[0].length > 0) { playerHand[toIdx] = sidePiles[0].pop(); gameState = "DISCARD"; }
+                    }
+                    renderRack(); renderAllPiles(); updateDeckUI();
+                };
+                if (playerHand[i]) slot.appendChild(createTileUI(playerHand[i], "RACK", i));
+                rowEl.appendChild(slot);
+            }
+        }
+    }
+
+    function setupEvents() {
+        const deckEl = document.getElementById('main-deck');
+        
+        deckEl.onclick = () => {
+            if (turn !== 0) { showStatus("SIRA SİZDE DEĞİL!"); } 
+            else if (gameState !== "DRAW") { showStatus("ZATEN TAŞ ÇEKTİNİZ, BİR TAŞ ATIN!"); }
+        };
+
+        deckEl.draggable = true;
+        deckEl.ondragstart = (e) => { 
+            if(turn !== 0 || gameState !== "DRAW") {
+                e.preventDefault(); 
+                showStatus(turn !== 0 ? "SIRA SİZDE DEĞİL!" : "ZATEN TAŞ ÇEKTİNİZ!");
+                return;
+            }
+            dragSource = "DECK"; 
+        };
+
+        const targetEl = document.getElementById('discard-1');
+        targetEl.addEventListener('dragover', e => { if(turn === 0 && gameState === "DISCARD" && dragSource === "RACK") e.preventDefault(); });
+        targetEl.addEventListener('drop', e => { e.preventDefault(); handleDiscard(e.dataTransfer.getData("fromIdx"), 1); });
+        
+        const finishZone = document.getElementById('finish-target');
+        finishZone.addEventListener('dragover', e => { if(turn === 0 && gameState === "DISCARD" && dragSource === "RACK") e.preventDefault(); finishZone.classList.add('droppable-active'); });
+        finishZone.addEventListener('dragleave', () => finishZone.classList.remove('droppable-active'));
+        finishZone.addEventListener('drop', e => {
+            e.preventDefault(); finishZone.classList.remove('droppable-active');
+            const fromIdx = e.dataTransfer.getData("fromIdx");
+            if(fromIdx !== "") {
+                const finishingTile = playerHand[fromIdx];
+                const pointsToReduce = isOkey(finishingTile) ? 4 : 2;
+                playerScores[1] -= pointsToReduce; playerScores[2] -= pointsToReduce; playerScores[3] -= pointsToReduce;
+                updateScoresUI();
+                showEndModal("TEBRİKLER!", "Elinizi başarıyla açtınız. Diğer oyuncuların puanı düşürüldü.");
+            }
+        });
+    }
+
+    function handleDiscard(fromIdx, toPileId) {
+        if(fromIdx === "" || turn !== 0 || gameState !== "DISCARD") return;
+        const tile = playerHand[parseInt(fromIdx)]; 
+        if(!tile) return; 
+        playerHand[parseInt(fromIdx)] = null; 
+        sidePiles[toPileId].push(tile);
+        renderRack(); renderAllPiles(); nextTurn();
+    }
+
+    function renderAllPiles() {
+        for(let i=0; i<4; i++) {
+            const el = document.getElementById(`discard-${i}`); el.innerHTML = '';
+            sidePiles[i].forEach((tile, index) => {
+                const isLast = (index === sidePiles[i].length - 1);
+                const tileEl = createTileUI(tile, (isLast && i === 0) ? "SIDE" : null, null, !isLast);
+                if(tileEl) { 
+                    tileEl.style.top = `${index * 2}px`; 
+                    tileEl.style.zIndex = index + 1; 
+                    el.appendChild(tileEl); 
+                    if(isLast && i === 0) {
+                        tileEl.onclick = () => {
+                           if(turn === 0 && gameState === "DRAW") {
+                               playerHand[playerHand.indexOf(null)] = sidePiles[0].pop();
+                               gameState = "DISCARD";
+                               renderRack(); renderAllPiles();
+                           } else {
+                               showStatus(turn !== 0 ? "SIRA SİZDE DEĞİL!" : "ZATEN TAŞ ÇEKTİNİZ!");
+                           }
+                        };
+                    }
+                }
+            });
+        }
+    }
+
+    function updateTurnUI() { for(let i=0; i<4; i++) document.getElementById(`panel-${i}`).classList.toggle('active-turn', i === turn); }
+    function updateDeckUI() { 
+        document.getElementById('deck-count').innerText = `DESTE (${deck.length})`; 
+        if (deck.length === 0 && !isGameOver) showEndModal("TAŞLAR BİTTİ", "Ortada çekilecek taş kalmadı! El berabere bitti.");
+    }
+    function updateScoresUI() { for(let i=0; i<4; i++) document.getElementById(`score-${i}`).innerText = playerScores[i]; }
+    function showStatus(msg) { 
+        const el = document.getElementById('status-display'); 
+        el.innerText = msg; el.style.display = 'block'; 
+        setTimeout(() => el.style.display = 'none', 3000); 
+    }
+    
+    function nextTurn() { turn = (turn + 1) % 4; gameState = "DRAW"; updateTurnUI(); if (turn !== 0 && !isGameOver) runBotTurn(); }
+
+    async function runBotTurn() {
+        if (isGameOver) return;
+        await new Promise(r => setTimeout(r, actualWaitTime));
+        let tileTaken = (sidePiles[turn].length > 0 && Math.random() < 0.3) ? sidePiles[turn].pop() : (deck.length > 0 ? deck.pop() : null);
+        if(!tileTaken) { updateDeckUI(); return; }
+        botHands[turn].push(tileTaken); renderAllPiles(); updateDeckUI();
+        await new Promise(r => setTimeout(r, actualWaitTime * 0.8));
+        
+        let deckDrawnPercent = (initialDeckSize - deck.length) / initialDeckSize;
+        let winChance = (deckDrawnPercent > 0.15) ? (difficulty === 'easy' ? 0.005 : (difficulty === 'medium' ? 0.04 : 0.10)) : 0;
+
+        if (Math.random() < winChance) { 
+            const botName = document.getElementById(`disp-${turn}`).innerText;
+            playerScores[0] -= 2; playerScores[(turn+1)%4] -= 2; playerScores[(turn+2)%4] -= 2;
+            updateScoresUI();
+            showEndModal("BİRİ BİTTİ!", `${botName} elini açtı! Puanınız düştü.`);
+            return;
+        }
+        sidePiles[(turn + 1) % 4].push(botHands[turn].shift()); 
+        renderAllPiles(); nextTurn();
+    }
+</script>
+</body>
+</html>
